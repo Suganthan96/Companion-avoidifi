@@ -96,13 +96,86 @@
                 android:textSize="12sp"/>
 
             <RadioButton
-                android:id="@+id/radio30Days"
+                android:id="@+id/radioCustom"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/thirty_days"
+                android:text="Custom"
                 android:textSize="12sp"/>
         </RadioGroup>
+
+        <!-- Custom Date Range Picker -->
+        <LinearLayout
+            android:id="@+id/customDateLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:layout_marginBottom="8dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="From: "
+                    android:textSize="14sp"/>
+
+                <Button
+                    android:id="@+id/btnStartDate"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Select Start Date"
+                    android:textSize="12sp"
+                    style="?attr/materialButtonOutlinedStyle"/>
+
+                <Button
+                    android:id="@+id/btnStartTime"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="00:00"
+                    android:textSize="12sp"
+                    android:layout_marginStart="4dp"
+                    style="?attr/materialButtonOutlinedStyle"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="4dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="To:     "
+                    android:textSize="14sp"/>
+
+                <Button
+                    android:id="@+id/btnEndDate"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Select End Date"
+                    android:textSize="12sp"
+                    style="?attr/materialButtonOutlinedStyle"/>
+
+                <Button
+                    android:id="@+id/btnEndTime"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="23:59"
+                    android:textSize="12sp"
+                    android:layout_marginStart="4dp"
+                    style="?attr/materialButtonOutlinedStyle"/>
+            </LinearLayout>
+        </LinearLayout>
 
         <Button
             android:id="@+id/btnRefresh"

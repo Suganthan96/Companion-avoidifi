@@ -1,6 +1,8 @@
 package com.example.digitalwellbeingviewer
 
 import android.app.AppOpsManager
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.app.usage.UsageStats
 import android.app.usage.UsageStatsManager
 import android.content.Context
@@ -23,6 +25,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var usageManager: UsageStatsManager
     private lateinit var adapter: UsageAdapter
+    
+    private var startDateTime = Calendar.getInstance().apply {
+        add(Calendar.HOUR, -24)
+    }
+    private var endDateTime = Calendar.getInstance()
+    
+    private val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+    private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,10 +64,24 @@ class MainActivity : AppCompatActivity() {
 
         // Radio button listeners for time range
         binding.radioGroup.setOnCheckedChangeListener { _, checkedId ->
+            if (checkedId == R.id.radioCustom) {
+                binding.customDateLayout.visibility = View.VISIBLE
+            } else {
+                binding.customDateLayout.visibility = View.GONE
+            }
+            
             if (hasUsageStatsPermission()) {
                 loadUsageData()
             }
         }
+        
+        // Date and time picker listeners
+        binding.btnStartDate.setOnClickListener { showDatePicker(true) }
+        binding.btnStartTime.setOnClickListener { showTimePicker(true) }
+        binding.btnEndDate.setOnClickListener { showDatePicker(false) }
+        binding.btnEndTime.setOnClickListener { showTimePicker(false) }
+        
+        updateDateTimeButtons()
     }
 
     override fun onResume() {
@@ -104,12 +128,39 @@ class MainActivity : AppCompatActivity() {
         // Get selected time range
         val (start, end) = getSelectedTimeRange()
         
-        // Query usage stats
+        // For custom ranges, use events for precise tracking
+        val usageItems = if (binding.radioGroup.checkedRadioButtonId == R.id.radioCustom) {
+            getUsageFromEvents(start, end)
+        } else {
+            getUsageFromStats(start, end)
+        }
+
+        // Update UI
+        binding.progressBar.visibility = View.GONE
+        adapter.submitList(usageItems)
+        
+        val totalTime = usageItems.sumOf { it.usageTime }
+        val timeRangeText = if (binding.radioGroup.checkedRadioButtonId == R.id.radioCustom) {
+            "\n${dateFormat.format(Date(start))} ${timeFormat.format(Date(start))} - ${dateFormat.format(Date(end))} ${timeFormat.format(Date(end))}"
+        } else {
+            ""
+        }
+        binding.totalUsage.text = "Total screen time: ${formatDuration(totalTime)}$timeRangeText"
+        
+        if (usageItems.isEmpty()) {
+            binding.emptyMessage.visibility = View.VISIBLE
+            binding.recyclerView.visibility = View.GONE
+        } else {
+            binding.emptyMessage.visibility = View.GONE
+            binding.recyclerView.visibility = View.VISIBLE
+        }
+    }
+    
+    private fun getUsageFromStats(start: Long, end: Long): List<UsageItem> {
         val stats: List<UsageStats> = usageManager.queryUsageStats(
             UsageStatsManager.INTERVAL_DAILY, start, end
         ) ?: emptyList()
 
-        // Aggregate usage by package with detailed info
         val usageMap = mutableMapOf<String, UsageData>()
         for (stat in stats) {
             val time = stat.totalTimeInForeground
@@ -131,8 +182,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Convert to list of UsageItem with app names
-        val usageItems = usageMap.map { (packageName, data) ->
+        return usageMap.map { (packageName, data) ->
             UsageItem(
                 packageName = packageName,
                 appName = getAppName(packageName),
@@ -141,33 +191,127 @@ class MainActivity : AppCompatActivity() {
                 firstUsedTime = data.firstUsed
             )
         }.sortedByDescending { it.usageTime }
-
-        // Update UI
-        binding.progressBar.visibility = View.GONE
-        adapter.submitList(usageItems)
+    }
+    
+    private fun getUsageFromEvents(start: Long, end: Long): List<UsageItem> {
+        val events = usageManager.queryEvents(start, end)
+        val usageMap = mutableMapOf<String, MutableList<Pair<Long, Long>>>()
+        val packageOpenTimes = mutableMapOf<String, Long>()
         
-        val totalTime = usageItems.sumOf { it.usageTime }
-        binding.totalUsage.text = "Total screen time: ${formatDuration(totalTime)}"
-        
-        if (usageItems.isEmpty()) {
-            binding.emptyMessage.visibility = View.VISIBLE
-            binding.recyclerView.visibility = View.GONE
-        } else {
-            binding.emptyMessage.visibility = View.GONE
-            binding.recyclerView.visibility = View.VISIBLE
+        val event = android.app.usage.UsageEvents.Event()
+        while (events.getNextEvent(event)) {
+            when (event.eventType) {
+                android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                    packageOpenTimes[event.packageName] = event.timeStamp
+                }
+                android.app.usage.UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                    val openTime = packageOpenTimes[event.packageName]
+                    if (openTime != null) {
+                        val duration = event.timeStamp - openTime
+                        if (duration > 0) {
+                            if (!usageMap.containsKey(event.packageName)) {
+                                usageMap[event.packageName] = mutableListOf()
+                            }
+                            usageMap[event.packageName]?.add(Pair(openTime, event.timeStamp))
+                        }
+                        packageOpenTimes.remove(event.packageName)
+                    }
+                }
+            }
         }
+        
+        // Calculate total time and last used for each app
+        val usageItems = usageMap.map { (packageName, sessions) ->
+            val totalTime = sessions.sumOf { it.second - it.first }
+            val lastUsed = sessions.maxOfOrNull { it.second } ?: 0L
+            val firstUsed = sessions.minOfOrNull { it.first } ?: 0L
+            
+            UsageItem(
+                packageName = packageName,
+                appName = getAppName(packageName),
+                usageTime = totalTime,
+                lastUsedTime = lastUsed,
+                firstUsedTime = firstUsed
+            )
+        }.sortedByDescending { it.usageTime }
+        
+        return usageItems
     }
 
     private fun getSelectedTimeRange(): Pair<Long, Long> {
-        val end = System.currentTimeMillis()
-        val start = when (binding.radioGroup.checkedRadioButtonId) {
-            R.id.radio1Hour -> end - TimeUnit.HOURS.toMillis(1)
-            R.id.radio24Hours -> end - TimeUnit.HOURS.toMillis(24)
-            R.id.radio7Days -> end - TimeUnit.DAYS.toMillis(7)
-            R.id.radio30Days -> end - TimeUnit.DAYS.toMillis(30)
-            else -> end - TimeUnit.HOURS.toMillis(24) // default 24 hours
+        val end: Long
+        val start: Long
+        
+        when (binding.radioGroup.checkedRadioButtonId) {
+            R.id.radio1Hour -> {
+                end = System.currentTimeMillis()
+                start = end - TimeUnit.HOURS.toMillis(1)
+            }
+            R.id.radio24Hours -> {
+                end = System.currentTimeMillis()
+                start = end - TimeUnit.HOURS.toMillis(24)
+            }
+            R.id.radio7Days -> {
+                end = System.currentTimeMillis()
+                start = end - TimeUnit.DAYS.toMillis(7)
+            }
+            R.id.radioCustom -> {
+                start = startDateTime.timeInMillis
+                end = endDateTime.timeInMillis
+            }
+            else -> {
+                end = System.currentTimeMillis()
+                start = end - TimeUnit.HOURS.toMillis(24)
+            }
         }
+        
         return Pair(start, end)
+    }
+    
+    private fun showDatePicker(isStartDate: Boolean) {
+        val calendar = if (isStartDate) startDateTime else endDateTime
+        
+        DatePickerDialog(
+            this,
+            { _, year, month, dayOfMonth ->
+                calendar.set(Calendar.YEAR, year)
+                calendar.set(Calendar.MONTH, month)
+                calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                updateDateTimeButtons()
+                if (hasUsageStatsPermission()) {
+                    loadUsageData()
+                }
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).show()
+    }
+    
+    private fun showTimePicker(isStartTime: Boolean) {
+        val calendar = if (isStartTime) startDateTime else endDateTime
+        
+        TimePickerDialog(
+            this,
+            { _, hourOfDay, minute ->
+                calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                calendar.set(Calendar.MINUTE, minute)
+                updateDateTimeButtons()
+                if (hasUsageStatsPermission()) {
+                    loadUsageData()
+                }
+            },
+            calendar.get(Calendar.HOUR_OF_DAY),
+            calendar.get(Calendar.MINUTE),
+            true
+        ).show()
+    }
+    
+    private fun updateDateTimeButtons() {
+        binding.btnStartDate.text = dateFormat.format(startDateTime.time)
+        binding.btnStartTime.text = timeFormat.format(startDateTime.time)
+        binding.btnEndDate.text = dateFormat.format(endDateTime.time)
+        binding.btnEndTime.text = timeFormat.format(endDateTime.time)
     }
 
     private fun getAppName(packageName: String): String {

@@ -7,7 +7,7 @@
     <string name="one_hour">1 Hour</string>
     <string name="twenty_four_hours">24 Hours</string>
     <string name="seven_days">7 Days</string>
-    <string name="thirty_days">30 Days</string>
+    <string name="custom_range">Custom</string>
     <string name="refresh">Refresh Data</string>
     <string name="total_screen_time">Total screen time: 0h 0m</string>
     <string name="no_usage_data">No usage data available for the selected time range.</string>
