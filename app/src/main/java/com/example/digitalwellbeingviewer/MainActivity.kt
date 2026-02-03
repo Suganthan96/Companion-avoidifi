@@ -13,9 +13,12 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.work.*
 import com.example.digitalwellbeingviewer.databinding.ActivityMainBinding
+import com.example.digitalwellbeingviewer.workers.UsageSyncWorker
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -81,7 +84,77 @@ class MainActivity : AppCompatActivity() {
         binding.btnEndDate.setOnClickListener { showDatePicker(false) }
         binding.btnEndTime.setOnClickListener { showTimePicker(false) }
         
+        // Sync Now button
+        binding.btnSyncNow.setOnClickListener {
+            triggerImmediateSync()
+        }
+        
         updateDateTimeButtons()
+        
+        // Schedule background sync
+        scheduleUsageSync()
+    }
+    
+    private fun scheduleUsageSync() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+        
+        val syncWorkRequest = PeriodicWorkRequestBuilder<UsageSyncWorker>(
+            15, TimeUnit.MINUTES // Sync every 15 minutes (Android minimum)
+        )
+            .setConstraints(constraints)
+            .setInputData(
+                workDataOf(
+                    "user_id" to "user_wallet_address_or_ens" // Replace with actual user ID
+                )
+            )
+            .build()
+        
+        WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
+            "usage_sync",
+            ExistingPeriodicWorkPolicy.REPLACE, // Replace to ensure it restarts
+            syncWorkRequest
+        )
+        
+        Toast.makeText(this, "Auto-sync every 15 minutes enabled ✓", Toast.LENGTH_LONG).show()
+    }
+    
+    private fun triggerImmediateSync() {
+        Toast.makeText(this, "Starting immediate sync...", Toast.LENGTH_SHORT).show()
+        
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+        
+        val syncWorkRequest = OneTimeWorkRequestBuilder<UsageSyncWorker>()
+            .setConstraints(constraints)
+            .setInputData(
+                workDataOf(
+                    "user_id" to "user_wallet_address_or_ens"
+                )
+            )
+            .build()
+        
+        WorkManager.getInstance(applicationContext).enqueue(syncWorkRequest)
+        
+        // Observe the work status
+        WorkManager.getInstance(applicationContext)
+            .getWorkInfoByIdLiveData(syncWorkRequest.id)
+            .observe(this) { workInfo ->
+                when (workInfo?.state) {
+                    WorkInfo.State.SUCCEEDED -> {
+                        Toast.makeText(this, "✓ Data synced to Supabase successfully!", Toast.LENGTH_LONG).show()
+                    }
+                    WorkInfo.State.FAILED -> {
+                        Toast.makeText(this, "✗ Sync failed. Check logs.", Toast.LENGTH_LONG).show()
+                    }
+                    WorkInfo.State.RUNNING -> {
+                        Toast.makeText(this, "Syncing...", Toast.LENGTH_SHORT).show()
+                    }
+                    else -> {}
+                }
+            }
     }
 
     override fun onResume() {

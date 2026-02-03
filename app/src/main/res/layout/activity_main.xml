@@ -201,6 +201,14 @@
             android:visibility="gone"
             android:layout_marginTop="32dp"/>
 
+        <Button
+            android:id="@+id/btnSyncNow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Sync to Supabase Now"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp"/>
+
         <TextView
             android:id="@+id/emptyMessage"
             android:layout_width="wrap_content"

@@ -4,12 +4,15 @@ A simple Android app built with Kotlin that displays your phone's Digital Wellbe
 
 ## Features
 
-- ✅ View per-app screen time for different time ranges (1 hour, 24 hours, 7 days, 30 days)
+- ✅ View per-app screen time for different time ranges (1 hour, 24 hours, 7 days, custom)
+- ✅ Custom date and time range selection
 - ✅ Total screen time summary
+- ✅ Detailed app usage with timestamps
+- ✅ **Automatic background sync to Supabase**
 - ✅ Clean Material Design UI with RecyclerView
 - ✅ Works on Android 7.0+ (API 24+)
 - ✅ No root required
-- ✅ No ads, no tracking, no internet permission
+- ✅ Privacy-focused
 
 ## How It Works
 
@@ -21,6 +24,12 @@ This app uses Android's **UsageStatsManager** API to read usage statistics from 
 - **Usage Access permission** (granted by user in Settings)
 
 ## Setup & Installation
+
+### Prerequisites
+
+1. **Supabase Account** (for data sync)
+   - See [SUPABASE_SETUP.md](SUPABASE_SETUP.md) for detailed setup instructions
+   - Update `SupabaseClient.kt` with your credentials
 
 ### Option 1: Build in Android Studio (Recommended)
 
