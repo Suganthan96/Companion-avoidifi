@@ -19,14 +19,31 @@ class UsageSyncWorker(
     context: Context,
     params: WorkerParameters
 ) : CoroutineWorker(context, params) {
+<<<<<<< HEAD
 
+=======
+<<<<<<< HEAD
+    
+=======
+
+>>>>>>> 70843fcd81006a4ab6a895023966e5b87aef73cc
+>>>>>>> db32e2e (letsgo name added for get method)
     private val repository = UsageRepository()
     private val usageManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
     private val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
+<<<<<<< HEAD
             android.util.Log.d("UsageSyncWorker", "Starting background sync...")
+=======
+<<<<<<< HEAD
+            val userId = inputData.getString("user_id")
+            android.util.Log.d("UsageSyncWorker", "Starting background sync... user_id: $userId")
+=======
+            android.util.Log.d("UsageSyncWorker", "Starting background sync...")
+>>>>>>> 70843fcd81006a4ab6a895023966e5b87aef73cc
+>>>>>>> db32e2e (letsgo name added for get method)
             
             // Get last sync time (or start from 1 hour ago if first sync)
             val lastSync = repository.getLastSyncTime(deviceId)

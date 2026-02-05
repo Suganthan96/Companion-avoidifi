@@ -42,6 +42,13 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Check if onboarding is complete
+        if (!OnboardingActivity.isOnboardingComplete(this)) {
+            startActivity(Intent(this, OnboardingActivity::class.java))
+            finish()
+            return
+        }
+
         usageManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
 
         // Setup RecyclerView
@@ -100,13 +107,16 @@ class MainActivity : AppCompatActivity() {
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
         
+        val userName = OnboardingActivity.getUserName(this)
+        android.util.Log.d("MainActivity", "Scheduling sync with user_id: $userName")
+        
         val syncWorkRequest = PeriodicWorkRequestBuilder<UsageSyncWorker>(
             15, TimeUnit.MINUTES // Sync every 15 minutes (Android minimum)
         )
             .setConstraints(constraints)
             .setInputData(
                 workDataOf(
-                    "user_id" to "user_wallet_address_or_ens" // Replace with actual user ID
+                    "user_id" to userName // Use actual user name
                 )
             )
             .build()
@@ -117,7 +127,7 @@ class MainActivity : AppCompatActivity() {
             syncWorkRequest
         )
         
-        Toast.makeText(this, "Auto-sync every 15 minutes enabled ✓", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "Auto-sync enabled for $userName ✓", Toast.LENGTH_LONG).show()
     }
     
     private fun triggerImmediateSync() {
@@ -131,7 +141,7 @@ class MainActivity : AppCompatActivity() {
             .setConstraints(constraints)
             .setInputData(
                 workDataOf(
-                    "user_id" to "user_wallet_address_or_ens"
+                    "user_id" to OnboardingActivity.getUserName(this)
                 )
             )
             .build()
